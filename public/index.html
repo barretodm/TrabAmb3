@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wizard Duel</title>
+<link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #07040f;
+  --parchment: #f0e6c8;
+  --parchment-dim: #c8b88a;
+  --parchment-dark: #8a7550;
+  --crimson: #8b0000;
+  --crimson-bright: #cc2222;
+  --gold: #c9a432;
+  --gold-light: #f0d060;
+  --gold-dim: #6a5418;
+  --teal: #0a4a4a;
+  --teal-bright: #12807a;
+  --bg: #0a0612;
+  --bg-mid: #120a22;
+  --bg-card: #16092e;
+  --bg-surface: #1e1040;
+  --border: rgba(201,164,50,0.25);
+  --border-bright: rgba(201,164,50,0.6);
+  --shadow-deep: 0 8px 40px rgba(0,0,0,0.8);
+  --glow-gold: 0 0 24px rgba(201,164,50,0.35);
+  --glow-red: 0 0 20px rgba(139,0,0,0.5);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--parchment);
+  font-family: 'Crimson Text', serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* TEXTURE OVERLAY */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    radial-gradient(ellipse at 15% 15%, rgba(80,20,160,0.25) 0%, transparent 45%),
+    radial-gradient(ellipse at 85% 85%, rgba(139,0,0,0.2) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 0%, rgba(50,20,100,0.3) 0%, transparent 40%);
+  pointer-events:none; z-index:0;
+}
+
+#root { position:relative; z-index:1; }
+
+/* ─── LOADING ─────────────────────────── */
+#screen-loading {
+  position:fixed; inset:0;
+  background:var(--bg);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:28px; z-index:300;
+  transition:opacity 0.6s;
+}
+#screen-loading.fade-out { opacity:0; pointer-events:none; }
+
+.load-glyph {
+  font-size:4rem;
+  animation:floatGlyph 2s ease-in-out infinite;
+  filter:drop-shadow(0 0 20px rgba(201,164,50,0.6));
+}
+@keyframes floatGlyph {
+  0%,100%{transform:translateY(0) rotate(-5deg);}
+  50%{transform:translateY(-12px) rotate(5deg);}
+}
+.load-title {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:clamp(1.8rem,5vw,3rem);
+  font-weight:900;
+  background:linear-gradient(135deg,var(--gold-dim),var(--gold-light),var(--gold));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+  filter:drop-shadow(0 0 12px rgba(201,164,50,0.4));
+  letter-spacing:6px;
+}
+.load-bar-wrap {
+  width:240px; height:3px;
+  background:rgba(255,255,255,0.06);
+  border-radius:2px; overflow:hidden;
+}
+.load-bar {
+  height:100%;
+  background:linear-gradient(90deg,var(--gold-dim),var(--gold-light));
+  width:0%; border-radius:2px;
+  transition:width 0.4s ease;
+}
+.load-msg {
+  font-family:'Cinzel',serif;
+  font-size:0.7rem; letter-spacing:3px;
+  text-transform:uppercase; color:var(--parchment-dark);
+  min-height:1.2em;
+}
+
+/* ─── SCREENS ─────────────────────────── */
+.screen { display:none; }
+.screen.active { display:block; }
+
+/* ─── HEADER ──────────────────────────── */
+.page-header {
+  text-align:center;
+  padding:32px 20px 24px;
+  position:relative;
+}
+.page-header::after {
+  content:'';
+  position:absolute; bottom:0; left:50%;
+  transform:translateX(-50%);
+  width:400px; height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+.page-title {
+  font-family:'Cinzel Decorative',cursive;
+  font-weight:900;
+  font-size:clamp(1.6rem,4vw,2.8rem);
+  background:linear-gradient(135deg,var(--gold-dim),var(--gold-light),var(--gold));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+  filter:drop-shadow(0 0 16px rgba(201,164,50,0.4));
+  letter-spacing:5px;
+}
+.page-sub {
+  font-family:'Cinzel',serif;
+  font-size:0.7rem; letter-spacing:3px;
+  text-transform:uppercase; color:var(--parchment-dark);
+  margin-top:6px;
+}
+
+/* ─── DRAFT SCREEN ────────────────────── */
+#screen-draft { animation:fadeIn 0.5s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+.draft-header {
+  text-align:center;
+  padding:24px 20px 16px;
+}
+.draft-instruction {
+  font-family:'Cinzel',serif;
+  font-size:0.8rem; letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--gold); margin-bottom:6px;
+}
+.draft-counter {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:2rem; color:var(--gold-light);
+  filter:drop-shadow(var(--glow-gold));
+}
+.draft-counter span { font-size:1rem; color:var(--parchment-dark); }
+
+.pack-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:20px;
+  max-width:960px;
+  margin:0 auto;
+  padding:20px;
+}
+
+/* ─── CARTA ───────────────────────────── */
+.card {
+  background:linear-gradient(160deg,var(--bg-surface),var(--bg-card));
+  border:1px solid var(--border);
+  border-radius:2px;
+  overflow:hidden;
+  position:relative;
+  transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275), box-shadow 0.3s, border-color 0.3s;
+  cursor:pointer;
+}
+.card::before {
+  content:'';
+  position:absolute; inset:0;
+  background:linear-gradient(160deg,rgba(201,164,50,0.04) 0%,transparent 60%);
+  pointer-events:none;
+}
+.card:hover { transform:translateY(-6px) scale(1.02); box-shadow:var(--shadow-deep),var(--glow-gold); border-color:var(--border-bright); }
+
+.card.selected {
+  border-color:var(--gold);
+  box-shadow:var(--shadow-deep),0 0 0 2px var(--gold-dim),var(--glow-gold);
+  transform:translateY(-8px) scale(1.03);
+}
+.card.selected::after {
+  content:'✦ SELECIONADO';
+  position:absolute; top:10px; left:50%; transform:translateX(-50%);
+  font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:2px;
+  background:var(--gold); color:var(--ink);
+  padding:3px 10px; z-index:5;
+  white-space:nowrap;
+}
+
+.card-img {
+  height:190px; overflow:hidden;
+  background:var(--bg-mid); position:relative;
+}
+.card-img::after {
+  content:'';
+  position:absolute; bottom:0; left:0; right:0;
+  height:70px;
+  background:linear-gradient(transparent,var(--bg-card));
+}
+.card-img img {
+  width:100%; height:100%;
+  object-fit:cover; object-position:top center;
+  filter:sepia(0.15) contrast(1.05) brightness(0.9);
+  transition:transform 0.5s;
+}
+.card:hover .card-img img { transform:scale(1.06); }
+
+.house-badge {
+  position:absolute; top:10px; right:10px; z-index:2;
+  width:30px; height:30px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.8rem;
+  border:1px solid rgba(255,255,255,0.15);
+  backdrop-filter:blur(6px);
+}
+
+.card-body { padding:14px 16px; }
+.card-name {
+  font-family:'Cinzel',serif; font-size:0.95rem; font-weight:600;
+  color:var(--gold-light); line-height:1.3; margin-bottom:3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.card-meta { font-size:0.75rem; color:var(--parchment-dark); margin-bottom:12px; }
+
+.hp-bar-wrap {
+  display:flex; align-items:center; gap:8px; margin-bottom:10px;
+}
+.hp-label { font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:1px; color:var(--parchment-dark); width:20px; }
+.hp-track {
+  flex:1; height:5px;
+  background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden;
+}
+.hp-fill {
+  height:100%; border-radius:3px;
+  transition:width 0.6s ease, background 0.4s;
+}
+.hp-val { font-family:'Cinzel',serif; font-size:0.7rem; color:var(--gold); min-width:36px; text-align:right; }
+
+.mini-stats { display:flex; gap:6px; }
+.mini-stat {
+  flex:1; background:rgba(0,0,0,0.3); border:1px solid rgba(201,164,50,0.1);
+  border-radius:2px; padding:5px 4px; text-align:center;
+}
+.mini-stat-icon { font-size:0.75rem; display:block; }
+.mini-stat-val { font-family:'Cinzel Decorative',cursive; font-size:0.8rem; color:var(--gold); display:block; }
+.mini-stat-lbl { font-family:'Cinzel',serif; font-size:0.5rem; letter-spacing:1px; text-transform:uppercase; color:var(--parchment-dark); display:block; }
+
+/* ─── BTN ─────────────────────────────── */
+.btn {
+  font-family:'Cinzel',serif; font-size:0.8rem; letter-spacing:2px;
+  text-transform:uppercase; padding:11px 28px;
+  border:1px solid var(--gold-dim);
+  background:linear-gradient(135deg,rgba(201,164,50,0.1),rgba(201,164,50,0.04));
+  color:var(--gold); cursor:pointer;
+  transition:all 0.25s; position:relative; overflow:hidden;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+}
+.btn::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg,rgba(201,164,50,0.18),transparent);
+  opacity:0; transition:opacity 0.25s;
+}
+.btn:hover::before { opacity:1; }
+.btn:hover { box-shadow:var(--glow-gold); border-color:var(--gold); }
+.btn:active { transform:scale(0.97); }
+.btn:disabled { opacity:0.3; cursor:not-allowed; }
+.btn:disabled:hover { box-shadow:none; border-color:var(--gold-dim); }
+.btn:disabled::before { opacity:0; }
+.btn-lg { font-size:0.95rem; padding:14px 48px; }
+.btn-danger { border-color:var(--crimson); color:#ff6666; }
+.btn-danger::before { background:linear-gradient(135deg,rgba(139,0,0,0.25),transparent); }
+.btn-danger:hover { box-shadow:var(--glow-red); border-color:var(--crimson-bright); }
+
+/* ─── DRAFT FOOTER ────────────────────── */
+.draft-footer {
+  text-align:center; padding:24px 20px 40px;
+  display:flex; flex-direction:column; align-items:center; gap:12px;
+}
+
+/* ─── BATTLE SCREEN ───────────────────── */
+#screen-battle { animation:fadeIn 0.5s ease; }
+
+.battle-layout {
+  display:grid;
+  grid-template-columns:1fr 260px 1fr;
+  gap:16px;
+  max-width:1100px;
+  margin:0 auto;
+  padding:20px;
+  align-items:start;
+}
+
+.battle-zone { display:flex; flex-direction:column; gap:14px; min-width:0; overflow:hidden; }
+.zone-header {
+  font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:3px;
+  text-transform:uppercase; color:var(--parchment-dark);
+  text-align:center; padding-bottom:8px;
+  border-bottom:1px solid rgba(201,164,50,0.12);
+}
+.zone-header .name { color:var(--gold); display:block; font-size:0.85rem; margin-top:4px; }
+
+/* battle card: nao clicavel, mostra HP dinamico */
+.battle-card { cursor:default; }
+.battle-card:hover { transform:none; box-shadow:none; }
+.battle-card.battling {
+  border-color:var(--gold);
+  box-shadow:var(--shadow-deep),var(--glow-gold);
+  animation:battleShake 0.4s ease;
+}
+.battle-card.hit {
+  border-color:var(--crimson-bright);
+  box-shadow:var(--shadow-deep),var(--glow-red);
+  animation:hitFlash 0.5s ease;
+}
+.battle-card.dead {
+  opacity:0.35; filter:grayscale(0.8);
+  border-color:rgba(100,100,100,0.2);
+}
+@keyframes battleShake {
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-6px);}
+  40%{transform:translateX(6px);}
+  60%{transform:translateX(-4px);}
+  80%{transform:translateX(4px);}
+}
+@keyframes hitFlash {
+  0%,100%{filter:none;}
+  30%{filter:brightness(2) saturate(0);}
+}
+
+/* ─── CENTRO DA BATALHA ───────────────── */
+.battle-center {
+  display:flex; flex-direction:column;
+  align-items:center; gap:14px;
+  padding-top:40px;
+}
+.vs-emblem {
+  font-family:'Cinzel Decorative',cursive;
+  font-size:2rem; color:var(--gold);
+  filter:drop-shadow(var(--glow-gold));
+}
+.round-info {
+  text-align:center;
+  font-family:'Cinzel',serif; font-size:0.65rem;
+  letter-spacing:2px; text-transform:uppercase;
+  color:var(--parchment-dark); line-height:1.8;
+}
+.round-info strong { color:var(--gold-light); font-size:1.4rem; display:block; }
+
+.battle-log {
+  width:100%; max-height:130px; overflow-y:auto;
+  background:rgba(0,0,0,0.4); border:1px solid rgba(201,164,50,0.1);
+  border-radius:2px; padding:10px;
+  font-size:0.8rem; line-height:1.7; color:var(--parchment-dim);
+  scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent;
+}
+.log-entry { display:block; padding:1px 0; }
+.log-entry.win { color:var(--gold-light); }
+.log-entry.lose { color:#ff8888; }
+.log-entry.heal { color:#88ffcc; }
+.log-entry.info { color:var(--parchment-dark); font-style:italic; }
+
+/* ─── SPELL PANEL ─────────────────────── */
+.spell-panel {
+  margin-top:6px;
+  background:rgba(0,0,0,0.35);
+  border:1px solid var(--border);
+  padding:14px;
+  width:100%;
+}
+.spell-panel-title {
+  font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:2px;
+  text-transform:uppercase; color:var(--parchment-dark);
+  margin-bottom:10px; text-align:center;
+}
+.spell-list { display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--gold-dim) transparent; }
+
+.spell-btn {
+  background:rgba(0,0,0,0.3); border:1px solid rgba(201,164,50,0.15);
+  padding:8px 10px; cursor:pointer; text-align:left;
+  transition:all 0.2s; border-radius:1px;
+  display:grid; grid-template-columns:1fr auto;
+  gap:4px; align-items:center;
+}
+.spell-btn:hover:not(:disabled) {
+  background:rgba(201,164,50,0.08);
+  border-color:rgba(201,164,50,0.4);
+}
+.spell-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.spell-btn > div { min-width:0; overflow:hidden; }
+.spell-name { font-family:'Cinzel',serif; font-size:0.75rem; color:var(--gold-light); display:block; }
+.spell-effect { font-size:0.7rem; color:var(--parchment-dark); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.spell-dmg {
+  font-family:'Cinzel Decorative',cursive; font-size:0.8rem;
+  padding:3px 7px; border-radius:2px; white-space:nowrap;
+}
+.spell-dmg.attack { background:rgba(139,0,0,0.3); color:#ff8888; border:1px solid rgba(139,0,0,0.4); }
+.spell-dmg.heal { background:rgba(10,74,74,0.3); color:#88ffcc; border:1px solid rgba(10,74,74,0.4); }
+
+/* ─── DECK BADGES ─────────────────────── */
+.deck-badges {
+  display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:4px;
+}
+.deck-thumb {
+  width:44px; height:58px; overflow:hidden;
+  border:1px solid rgba(201,164,50,0.2); border-radius:1px;
+  background:var(--bg-mid); flex-shrink:0;
+  position:relative; transition:all 0.2s;
+}
+.deck-thumb img { width:100%; height:100%; object-fit:cover; object-position:top; filter:sepia(0.1); }
+.deck-thumb.active { border-color:var(--gold); box-shadow:var(--glow-gold); }
+.deck-thumb.dead { opacity:0.25; filter:grayscale(1); }
+.deck-thumb-placeholder {
+  width:44px; height:58px;
+  border:1px dashed rgba(201,164,50,0.12);
+  border-radius:1px; display:flex;
+  align-items:center; justify-content:center;
+  color:var(--parchment-dark); font-size:0.6rem;
+}
+
+/* ─── SCOREBOARD ──────────────────────── */
+.scoreboard {
+  display:flex; justify-content:center; align-items:center; gap:40px;
+  padding:20px; max-width:400px; margin:0 auto;
+}
+.score-block { text-align:center; }
+.score-lbl { font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:2px; text-transform:uppercase; color:var(--parchment-dark); }
+.score-num { font-family:'Cinzel Decorative',cursive; font-size:2.4rem; color:var(--gold); filter:drop-shadow(var(--glow-gold)); line-height:1; }
+.score-sep { font-family:'Cinzel Decorative',cursive; font-size:1rem; color:var(--parchment-dark); }
+
+/* ─── STATUS MSG ──────────────────────── */
+.status-msg {
+  text-align:center; padding:8px 20px;
+  font-family:'Cinzel',serif; font-size:0.8rem; letter-spacing:2px;
+  color:var(--gold-light); min-height:28px;
+}
+
+/* ─── GAME OVER ───────────────────────── */
+#screen-over {
+  position:fixed; inset:0;
+  background:rgba(7,4,15,0.94);
+  display:none; align-items:center; justify-content:center;
+  z-index:200; backdrop-filter:blur(8px);
+  animation:fadeIn 0.5s ease;
+}
+#screen-over.active { display:flex; }
+
+.over-box {
+  text-align:center; padding:56px 72px;
+  border:1px solid rgba(201,164,50,0.3);
+  background:linear-gradient(160deg,var(--bg-surface),var(--bg));
+  position:relative; max-width:480px;
+  animation:fadeIn 0.5s ease;
+}
+.over-box::before {
+  content:''; position:absolute; inset:10px;
+  border:1px solid rgba(201,164,50,0.08);
+  pointer-events:none;
+}
+.over-glyph { font-size:3.5rem; margin-bottom:16px; display:block; }
+.over-title {
+  font-family:'Cinzel Decorative',cursive; font-size:2.2rem;
+  background:linear-gradient(135deg,var(--gold-dim),var(--gold-light));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; filter:drop-shadow(0 0 12px rgba(201,164,50,0.4));
+  margin-bottom:8px;
+}
+.over-sub { font-family:'Cinzel',serif; font-size:0.8rem; letter-spacing:2px; color:var(--parchment-dark); margin-bottom:32px; }
+.over-score { font-family:'Cinzel Decorative',cursive; font-size:1.4rem; color:var(--gold); margin-bottom:32px; display:block; }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="screen-loading">
+  <div class="load-glyph">⚡</div>
+  <div class="load-title">Wizard Duel</div>
+  <div class="load-bar-wrap"><div class="load-bar" id="loadBar"></div></div>
+  <div class="load-msg" id="loadMsg">Preparando o grimório...</div>
+</div>
+
+<!-- DRAFT -->
+<div class="screen" id="screen-draft">
+  <div class="page-header">
+    <div class="page-title">⚡ Wizard Duel</div>
+    <div class="page-sub">Escolha seus bruxos — monte seu deck</div>
+  </div>
+
+  <div class="draft-header">
+    <div class="draft-instruction">Escolha 2 bruxos do seu pack</div>
+    <div class="draft-counter"><span id="draftCount">0</span> <span>/ 2 selecionados</span></div>
+  </div>
+
+  <div class="pack-grid" id="packGrid"></div>
+
+  <div class="draft-footer">
+    <button class="btn btn-lg" id="btnConfirmDraft" onclick="confirmDraft()" disabled>
+      ⚔ Iniciar Duelo
+    </button>
+    <button class="btn" onclick="rerollPack()">🎲 Novo Pack</button>
+  </div>
+</div>
+
+<!-- BATTLE -->
+<div class="screen" id="screen-battle">
+  <div class="page-header">
+    <div class="page-title">⚔ Duelo em Curso</div>
+  </div>
+
+  <div class="scoreboard">
+    <div class="score-block">
+      <div class="score-lbl">Você</div>
+      <div class="score-num" id="scoreP">0</div>
+    </div>
+    <div class="score-sep">✦</div>
+    <div class="score-block">
+      <div class="score-lbl">CPU</div>
+      <div class="score-num" id="scoreC">0</div>
+    </div>
+  </div>
+
+  <div class="status-msg" id="battleStatus">Escolha um feitiço para atacar!</div>
+
+  <div class="battle-layout">
+    <!-- Player zone -->
+    <div class="battle-zone">
+      <div class="zone-header">
+        ✦ Seus Bruxos
+        <span class="name" id="playerActiveName">—</span>
+      </div>
+      <div id="playerCardSlot"></div>
+      <div class="deck-badges" id="playerDeckBadges"></div>
+      <div class="spell-panel">
+        <div class="spell-panel-title">⚡ Seus Feitiços</div>
+        <div class="spell-list" id="spellList"></div>
+      </div>
+    </div>
+
+    <!-- Center -->
+    <div class="battle-center">
+      <div class="vs-emblem">VS</div>
+      <div class="round-info">
+        Rodada<strong id="roundNum">1</strong>
+      </div>
+      <div class="battle-log" id="battleLog"></div>
+
+      <button class="btn" id="btnNext" onclick="nextRound()" style="display:none">
+        Próxima Rodada →
+      </button>
+    </div>
+
+    <!-- CPU zone -->
+    <div class="battle-zone">
+      <div class="zone-header">
+        ⚔ Bruxo CPU
+        <span class="name" id="cpuActiveName">—</span>
+      </div>
+      <div id="cpuCardSlot"></div>
+      <div class="deck-badges" id="cpuDeckBadges"></div>
+    </div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="screen-over">
+  <div class="over-box">
+    <span class="over-glyph" id="overGlyph">🏆</span>
+    <div class="over-title" id="overTitle">Vitória!</div>
+    <div class="over-sub" id="overSub">O duelo terminou</div>
+    <span class="over-score" id="overScore"></span>
+    <button class="btn btn-lg" onclick="restartGame()">⚡ Jogar Novamente</button>
+  </div>
+</div>
+
+<div id="root"></div>
+
+<script>
+// ── ESTADO GLOBAL ──────────────────────────────────────
+var state = {
+  phase: 'loading',
+  pack: [],
+  selectedCards: [],
+  playerDeck: [],
+  cpuDeck: [],
+  spells: [],
+  playerSpells: [],
+  round: 1,
+  scoreP: 0,
+  scoreC: 0,
+  waiting: false
+}
+
+// ── UTILS ──────────────────────────────────────────────
+function getHouseColor(h) {
+  if (h == 'Gryffindor') return '#6b1010'
+  if (h == 'Slytherin')  return '#0a3018'
+  if (h == 'Hufflepuff') return '#3a2800'
+  if (h == 'Ravenclaw')  return '#0a1a3a'
+  return '#1e1040'
+}
+function getHouseEmoji(h) {
+  if (h == 'Gryffindor') return '🦁'
+  if (h == 'Slytherin')  return '🐍'
+  if (h == 'Hufflepuff') return '🦡'
+  if (h == 'Ravenclaw')  return '🦅'
+  return '✦'
+}
+function hpColor(pct) {
+  if (pct > 0.6) return 'linear-gradient(90deg,#0a4a2a,#22cc77)'
+  if (pct > 0.3) return 'linear-gradient(90deg,#4a3a00,#ccaa22)'
+  return 'linear-gradient(90deg,#4a0a0a,#cc2222)'
+}
+function log(msg, type) {
+  type = type || 'info'
+  var el = document.getElementById('battleLog')
+  var span = document.createElement('span')
+  span.className = 'log-entry ' + type
+  span.textContent = msg
+  el.appendChild(span)
+  el.scrollTop = el.scrollHeight
+}
+function setStatus(msg) {
+  document.getElementById('battleStatus').textContent = msg
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active') })
+  var el = document.getElementById(id)
+  if (el) el.classList.add('active')
+}
+
+// ── RENDER CARTA ───────────────────────────────────────
+function renderCard(char, isDraft) {
+  var pct = char.hp / char.maxHp
+  var houseColor = getHouseColor(char.house)
+  var houseEmoji = getHouseEmoji(char.house)
+
+  var html = '<div class="card-img">'
+  html += '<img src="'+char.image+'" alt="'+char.name+'" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/300px-No_image_available.svg.png\'">'
+  html += '<div class="house-badge" style="background:'+houseColor+'">'+houseEmoji+'</div>'
+  html += '</div>'
+  html += '<div class="card-body">'
+  html += '<div class="card-name">'+char.name+'</div>'
+  html += '<div class="card-meta">'+char.species+' · '+char.house+'</div>'
+  html += '<div class="hp-bar-wrap">'
+  html += '<span class="hp-label">HP</span>'
+  html += '<div class="hp-track"><div class="hp-fill" style="width:'+Math.max(0,pct*100)+'%;background:'+hpColor(pct)+'"></div></div>'
+  html += '<span class="hp-val">'+Math.max(0,char.hp)+'/'+char.maxHp+'</span>'
+  html += '</div>'
+  html += '<div class="mini-stats">'
+  html += '<div class="mini-stat"><span class="mini-stat-icon">⚡</span><span class="mini-stat-val">'+char.power+'</span><span class="mini-stat-lbl">Poder</span></div>'
+  html += '<div class="mini-stat"><span class="mini-stat-icon">🔮</span><span class="mini-stat-val">'+char.magic+'</span><span class="mini-stat-lbl">Magia</span></div>'
+  html += '<div class="mini-stat"><span class="mini-stat-icon">🛡</span><span class="mini-stat-val">'+char.defense+'</span><span class="mini-stat-lbl">Defesa</span></div>'
+  html += '</div></div>'
+  return html
+}
+
+// ── DECK BADGES ────────────────────────────────────────
+function renderDeckBadges(deck, activeIdx, elId) {
+  var el = document.getElementById(elId)
+  var html = ''
+  for (var i = 0; i < deck.length; i++) {
+    var cls = deck[i].hp <= 0 ? 'deck-thumb dead' : (i == activeIdx ? 'deck-thumb active' : 'deck-thumb')
+    html += '<div class="'+cls+'"><img src="'+deck[i].image+'" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/300px-No_image_available.svg.png\'"></div>'
+  }
+  el.innerHTML = html
+}
+
+// ── SPELL LIST ─────────────────────────────────────────
+function renderSpells(enabled) {
+  var el = document.getElementById('spellList')
+  var html = ''
+  for (var i = 0; i < state.playerSpells.length; i++) {
+    var sp = state.playerSpells[i]
+    var isHeal = sp.damage < 0
+    var dmgLabel = isHeal ? '💚 +'+Math.abs(sp.damage)+' HP' : '💀 '+sp.damage+' dmg'
+    var dmgClass = isHeal ? 'spell-dmg heal' : 'spell-dmg attack'
+    var dis = enabled ? '' : 'disabled'
+    html += '<button class="spell-btn" '+dis+' onclick="castSpell('+i+')">'
+    html += '<div><span class="spell-name">'+sp.name+'</span><span class="spell-effect">'+sp.effect+'</span></div>'
+    html += '<span class="'+dmgClass+'">'+dmgLabel+'</span>'
+    html += '</button>'
+  }
+  el.innerHTML = html
+}
+
+// ── LOADING ────────────────────────────────────────────
+async function loadGame() {
+  var bar = document.getElementById('loadBar')
+  var msg = document.getElementById('loadMsg')
+
+  msg.textContent = 'Invocando personagens...'
+  bar.style.width = '20%'
+
+  var packRes = await fetch('/api/pack')
+  var packData = await packRes.json()
+  state.pack = packData.cards
+
+  bar.style.width = '55%'
+  msg.textContent = 'Consultando o livro de feitiços...'
+
+  var spellRes = await fetch('/api/spells')
+  var spellData = await spellRes.json()
+  state.spells = spellData.spells
+
+  bar.style.width = '85%'
+  msg.textContent = 'Preparando o adversário...'
+
+  var cpuRes = await fetch('/api/cpu-deck', { method: 'POST' })
+  var cpuData = await cpuRes.json()
+  state.cpuDeck = cpuData.deck
+
+  // atribui 3 feitiços aleatorios ao jogador
+  var shuffled = state.spells.slice()
+  for (var x = shuffled.length - 1; x > 0; x--) {
+    var y = Math.floor(Math.random() * (x + 1))
+    var z = shuffled[x]; shuffled[x] = shuffled[y]; shuffled[y] = z
+  }
+  state.playerSpells = shuffled.slice(0, 5)
+
+  bar.style.width = '100%'
+  msg.textContent = 'Pronto!'
+
+  setTimeout(function() {
+    document.getElementById('screen-loading').classList.add('fade-out')
+    setTimeout(function() {
+      document.getElementById('screen-loading').style.display = 'none'
+      showScreen('screen-draft')
+      renderPack()
+    }, 600)
+  }, 400)
+}
+
+// ── DRAFT ──────────────────────────────────────────────
+function renderPack() {
+  var grid = document.getElementById('packGrid')
+  grid.innerHTML = ''
+  for (var i = 0; i < state.pack.length; i++) {
+    var char = state.pack[i]
+    var isSelected = state.selectedCards.indexOf(i) >= 0
+    var div = document.createElement('div')
+    div.className = 'card' + (isSelected ? ' selected' : '')
+    div.innerHTML = renderCard(char, true)
+    div.setAttribute('data-idx', i)
+    div.onclick = (function(idx){ return function(){ toggleDraftCard(idx) } })(i)
+    grid.appendChild(div)
+  }
+  document.getElementById('draftCount').textContent = state.selectedCards.length
+  document.getElementById('btnConfirmDraft').disabled = state.selectedCards.length < 2
+}
+
+function toggleDraftCard(idx) {
+  var pos = state.selectedCards.indexOf(idx)
+  if (pos >= 0) {
+    state.selectedCards.splice(pos, 1)
+  } else {
+    if (state.selectedCards.length >= 2) return
+    state.selectedCards.push(idx)
+  }
+  renderPack()
+}
+
+async function rerollPack() {
+  state.selectedCards = []
+  document.getElementById('packGrid').innerHTML = '<div style="text-align:center;padding:40px;font-family:Cinzel,serif;font-size:0.7rem;letter-spacing:2px;color:var(--parchment-dark);grid-column:1/-1">Invocando novos bruxos...</div>'
+  var res = await fetch('/api/pack')
+  var data = await res.json()
+  state.pack = data.cards
+  renderPack()
+}
+
+function confirmDraft() {
+  if (state.selectedCards.length < 2) return
+  state.playerDeck = [state.pack[state.selectedCards[0]], state.pack[state.selectedCards[1]]]
+  startBattle()
+}
+
+// ── BATTLE ─────────────────────────────────────────────
+function startBattle() {
+  state.round = 1
+  state.scoreP = 0
+  state.scoreC = 0
+  state.waiting = false
+
+  document.getElementById('scoreP').textContent = '0'
+  document.getElementById('scoreC').textContent = '0'
+  document.getElementById('roundNum').textContent = '1'
+  document.getElementById('battleLog').innerHTML = ''
+  document.getElementById('btnNext').style.display = 'none'
+
+  showScreen('screen-battle')
+  renderBattleState()
+  log('⚔ O duelo começou! Escolha um feitiço para atacar.', 'info')
+  setStatus('Escolha um feitiço para atacar!')
+}
+
+function getActiveIdx(deck) {
+  for (var i = 0; i < deck.length; i++) {
+    if (deck[i].hp > 0) return i
+  }
+  return -1
+}
+
+function renderBattleState() {
+  var pIdx = getActiveIdx(state.playerDeck)
+  var cIdx = getActiveIdx(state.cpuDeck)
+
+  if (pIdx < 0 || cIdx < 0) { endGame(); return }
+
+  var pChar = state.playerDeck[pIdx]
+  var cChar = state.cpuDeck[cIdx]
+
+  document.getElementById('playerActiveName').textContent = pChar.name
+  document.getElementById('cpuActiveName').textContent = cChar.name
+
+  var pSlot = document.getElementById('playerCardSlot')
+  var cSlot = document.getElementById('cpuCardSlot')
+
+  var pdiv = document.createElement('div')
+  pdiv.className = 'card battle-card'
+  pdiv.id = 'battleCardP'
+  pdiv.innerHTML = renderCard(pChar, false)
+  pSlot.innerHTML = ''
+  pSlot.appendChild(pdiv)
+
+  var cdiv = document.createElement('div')
+  cdiv.className = 'card battle-card'
+  cdiv.id = 'battleCardC'
+  cdiv.innerHTML = renderCard(cChar, false)
+  cSlot.innerHTML = ''
+  cSlot.appendChild(cdiv)
+
+  renderDeckBadges(state.playerDeck, pIdx, 'playerDeckBadges')
+  renderDeckBadges(state.cpuDeck, cIdx, 'cpuDeckBadges')
+  renderSpells(!state.waiting)
+}
+
+function castSpell(spellIdx) {
+  if (state.waiting) return
+  state.waiting = true
+  renderSpells(false)
+
+  var sp = state.playerSpells[spellIdx]
+  var pIdx = getActiveIdx(state.playerDeck)
+  var cIdx = getActiveIdx(state.cpuDeck)
+  var pChar = state.playerDeck[pIdx]
+  var cChar = state.cpuDeck[cIdx]
+
+  // aplica feitico do jogador
+  var pDmg = Math.floor(sp.damage * (pChar.magic / 100) * (Math.random() * 0.4 + 0.8))
+
+  if (sp.damage < 0) {
+    // cura
+    var heal = Math.abs(pDmg)
+    pChar.hp = Math.min(pChar.maxHp, pChar.hp + heal)
+    log('✨ ' + sp.name + ' — você curou ' + heal + ' HP! (' + pChar.name + ': ' + pChar.hp + ' HP)', 'heal')
+    document.getElementById('battleCardP').classList.add('battling')
+    setTimeout(function(){ document.getElementById('battleCardP') && document.getElementById('battleCardP').classList.remove('battling') }, 500)
+  } else {
+    // ataque
+    cChar.hp = cChar.hp - pDmg
+    log('⚡ ' + sp.name + ' → ' + cChar.name + ' perdeu ' + pDmg + ' HP! (' + cChar.name + ': ' + Math.max(0, cChar.hp) + ' HP)', 'win')
+    document.getElementById('battleCardC').classList.add('hit')
+    setTimeout(function(){ document.getElementById('battleCardC') && document.getElementById('battleCardC').classList.remove('hit') }, 600)
+  }
+
+  // cpu escolhe feitico aleatorio
+  setTimeout(function() {
+    var cpuSpellIdx = Math.floor(Math.random() * state.spells.length)
+    var cpuSp = state.spells[cpuSpellIdx]
+    var cpuDmg = Math.floor(cpuSp.damage * (cChar.magic / 100) * (Math.random() * 0.4 + 0.8))
+
+    if (cpuSp.damage < 0) {
+      var cpuHeal = Math.abs(cpuDmg)
+      cChar.hp = Math.min(cChar.maxHp, cChar.hp + cpuHeal)
+      log('🧙 CPU: ' + cpuSp.name + ' — CPU curou ' + cpuHeal + ' HP! (' + cChar.name + ': ' + cChar.hp + ' HP)', 'heal')
+      document.getElementById('battleCardC') && document.getElementById('battleCardC').classList.add('battling')
+      setTimeout(function(){ document.getElementById('battleCardC') && document.getElementById('battleCardC').classList.remove('battling') }, 500)
+    } else {
+      pChar.hp = pChar.hp - cpuDmg
+      log('💀 CPU: ' + cpuSp.name + ' → ' + pChar.name + ' perdeu ' + cpuDmg + ' HP! (' + pChar.name + ': ' + Math.max(0, pChar.hp) + ' HP)', 'lose')
+      document.getElementById('battleCardP') && document.getElementById('battleCardP').classList.add('hit')
+      setTimeout(function(){ document.getElementById('battleCardP') && document.getElementById('battleCardP').classList.remove('hit') }, 600)
+    }
+
+    setTimeout(function() {
+      // verifica mortes
+      var pNewIdx = getActiveIdx(state.playerDeck)
+      var cNewIdx = getActiveIdx(state.cpuDeck)
+
+      var roundOver = false
+
+      if (pIdx >= 0 && state.playerDeck[pIdx].hp <= 0) {
+        log('💀 ' + state.playerDeck[pIdx].name + ' foi derrotado!', 'lose')
+        state.scoreC++
+        document.getElementById('scoreC').textContent = state.scoreC
+        roundOver = true
+      }
+      if (cIdx >= 0 && state.cpuDeck[cIdx].hp <= 0) {
+        log('🏆 ' + state.cpuDeck[cIdx].name + ' foi derrotado!', 'win')
+        state.scoreP++
+        document.getElementById('scoreP').textContent = state.scoreP
+        roundOver = true
+      }
+
+      renderBattleState()
+
+      var pAlive = getActiveIdx(state.playerDeck)
+      var cAlive = getActiveIdx(state.cpuDeck)
+
+      if (pAlive < 0 || cAlive < 0) {
+        setTimeout(endGame, 800)
+        return
+      }
+
+      state.waiting = false
+
+      if (roundOver) {
+        state.round++
+        document.getElementById('roundNum').textContent = state.round
+        log('— Rodada ' + state.round + ' —', 'info')
+      }
+
+      setStatus('Escolha um feitiço para atacar!')
+      renderSpells(true)
+
+    }, 700)
+  }, 800)
+}
+
+function nextRound() {
+  document.getElementById('btnNext').style.display = 'none'
+  state.round++
+  document.getElementById('roundNum').textContent = state.round
+  log('— Rodada ' + state.round + ' —', 'info')
+  state.waiting = false
+  renderBattleState()
+  setStatus('Escolha um feitiço para atacar!')
+}
+
+// ── END ────────────────────────────────────────────────
+function endGame() {
+  var over = document.getElementById('screen-over')
+  var glyph = document.getElementById('overGlyph')
+  var title = document.getElementById('overTitle')
+  var sub   = document.getElementById('overSub')
+  var score = document.getElementById('overScore')
+
+  if (state.scoreP > state.scoreC) {
+    glyph.textContent = '🏆'
+    title.textContent = 'Vitória!'
+    sub.textContent   = 'Você dominou o duelo!'
+  } else if (state.scoreC > state.scoreP) {
+    glyph.textContent = '💀'
+    title.textContent = 'Derrota'
+    sub.textContent   = 'O CPU foi mais poderoso desta vez.'
+  } else {
+    glyph.textContent = '✦'
+    title.textContent = 'Empate'
+    sub.textContent   = 'Bruxos igualmente poderosos.'
+  }
+  score.textContent = 'Você ' + state.scoreP + '  ×  ' + state.scoreC + ' CPU'
+  over.classList.add('active')
+}
+
+function restartGame() {
+  document.getElementById('screen-over').classList.remove('active')
+  state.selectedCards = []
+  state.pack = []
+  state.playerDeck = []
+
+  // mostra loading de novo
+  var loadEl = document.getElementById('screen-loading')
+  loadEl.style.display = 'flex'
+  loadEl.classList.remove('fade-out')
+  document.getElementById('loadBar').style.width = '0%'
+  showScreen('')
+  loadGame()
+}
+
+// ── INIT ───────────────────────────────────────────────
+loadGame()
+</script>
+</body>
+</html>
