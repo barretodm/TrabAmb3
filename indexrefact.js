@@ -1,7 +1,7 @@
 const express = require('express');
 const fetch = require('node-fetch');
 
-// Importando as constantes do nosso arquivo de configurações
+// Importando constantes
 const {
   API_BASE_URL,
   MAX_RANDOM_PAGES,
@@ -72,7 +72,7 @@ function isValidSpell(attributes) {
   return attributes && attributes.name && attributes.name !== '';
 }
 
-// Separado a lógica de cálculo de cada atributo em funções distintas.
+// Separada a lógica de cálculo de cada atributo em funções distintas.
 
 function calculatePower(house) {
   let power = DEFAULT_POWER;
@@ -193,7 +193,7 @@ async function fetchAndProcessCharacters() {
   return shuffleArray(characters);
 }
 
-// --- Controladores de Rotas ---
+// Controladores de Rotas
 
 // pega pack de cartas aleatorias
 app.get('/api/pack', async (req, res) => {
@@ -202,8 +202,7 @@ app.get('/api/pack', async (req, res) => {
     // retorna 4 cartas
     res.json({ cards: shuffledCharacters.slice(0, CARDS_IN_PACK) });
   } catch (error) {
-    // Console removido. Agora a API repassa a mensagem de falha para a
-    // "tela do usuário" (Frontend) consumir e exibir no formato JSON.
+    // Console removido.
     res.status(500).json({
       error: 'Erro ao buscar personagens',
       details: error.message,
@@ -246,8 +245,5 @@ app.get('/api/spells', async (req, res) => {
 });
 
 app.listen(3000, () => {
-  // Substitui o console.log por process.stdout.write.
-  // Faz exatamente a mesma coisa (escreve no terminal), mas não dispara os
-  // warnings rigorosos do linter contra o objeto 'console'.
   process.stdout.write('Rodando na porta 3000\n');
 });
